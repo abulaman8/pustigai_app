@@ -12,15 +12,15 @@
 
 		<script>
 		const video = document.getElementById('video');
-		const ws = new WebSocket('ws://localhost:8000');
+		const ws = new WebSocket('ws:
 
-		// Access the webcam
+		
 		navigator.mediaDevices.getUserMedia({ video: true, audio: false })
 			.then(stream => {
 				video.srcObject = stream;
 			});
 
-		// Send frame every 100ms
+		
 		function sendFrame() {
 			const canvas = document.createElement('canvas');
 			canvas.width = video.videoWidth;
@@ -34,17 +34,17 @@
 			}, 'image/jpeg');
 		}
 
-		// Start sending frames when the WebSocket is open
+		
 		ws.addEventListener('open', () => {
 			setInterval(sendFrame, 100);
 		});
 
-		// Optional: receive and display processed frames
+		
 		ws.addEventListener('message', (event) => {
 			const img = document.getElementById("output");
 			const blob = new Blob([event.data], { type: 'image/jpeg' });
 			img.src = URL.createObjectURL(blob);
-			// document.body.appendChild(img);
+			
 		});
 		</script>
 	</body>

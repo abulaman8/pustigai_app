@@ -2,9 +2,8 @@ import asyncio
 import websockets
 import cv2
 import numpy as np
-import random
 
-# Dummy ML function
+
 
 
 def process_frame(frame):
@@ -18,14 +17,14 @@ def process_frame(frame):
     cv2.rectangle(frame, (x, y), (x + size, y + size), color, 2)
     return frame
 
-# Decode JPEG bytes to frame
+
 
 
 def decode_jpeg(jpeg_bytes):
     nparr = np.frombuffer(jpeg_bytes, np.uint8)
     return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-# Encode frame to JPEG bytes
+
 
 
 def encode_jpeg(frame):

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Video Streaming Client</title>
+	</head>
+	<body>
+		<h1>Live Webcam Stream</h1>
+		<video id="video" autoplay playsinline width="640" height="480"></video>
+		<canvas id="canvas" style="display: none;"></canvas>
+		<img src="" alt="output" id="output">
+
+
+		<script>
+		const video = document.getElementById('video');
+		const ws = new WebSocket('ws://localhost:8000');
+
+		// Access the webcam
+		navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+			.then(stream => {
+				video.srcObject = stream;
+			});
+
+		// Send frame every 100ms
+		function sendFrame() {
+			const canvas = document.createElement('canvas');
+			canvas.width = video.videoWidth;
+			canvas.height = video.videoHeight;
+			const ctx = canvas.getContext('2d');
+			ctx.drawImage(video, 0, 0);
+			canvas.toBlob((blob) => {
+				if (ws.readyState === WebSocket.OPEN) {
+					blob.arrayBuffer().then((buf) => ws.send(buf));
+				}
+			}, 'image/jpeg');
+		}
+
+		// Start sending frames when the WebSocket is open
+		ws.addEventListener('open', () => {
+			setInterval(sendFrame, 100);
+		});
+
+		// Optional: receive and display processed frames
+		ws.addEventListener('message', (event) => {
+			const img = document.getElementById("output");
+			const blob = new Blob([event.data], { type: 'image/jpeg' });
+			img.src = URL.createObjectURL(blob);
+			// document.body.appendChild(img);
+		});
+		</script>
+	</body>
+</html>

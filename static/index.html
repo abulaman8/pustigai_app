@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Video Streaming Client</title>
+</head>
+<body>
+  <h1>Live Webcam Stream</h1>
+  <video id="video" autoplay playsinline width="640" height="480"></video>
+  <canvas id="canvas" style="display: none;"></canvas>
+  <img src="" alt="output" id="output">
+
+  <script>
+    const video = document.getElementById('video');
+    const ws = new WebSocket('ws://127.0.0.1:8000/ws/stream');
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then(stream => {
+        video.srcObject = stream;
+      });
+
+    function sendFrameAndMetadata() {
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+
+      canvas.toBlob((blob) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          
+          const metadata = {
+            timestamp: Date.now(),
+            resolution: {
+              width: video.videoWidth,
+              height: video.videoHeight
+            },
+            type: "frame-meta"
+          };
+          ws.send(JSON.stringify(metadata));
+
+          
+          blob.arrayBuffer().then((buf) => ws.send(buf));
+        }
+      }, 'image/jpeg');
+    }
+
+    ws.addEventListener('open', () => {
+      setInterval(sendFrameAndMetadata, 100); 
+    });
+
+    ws.addEventListener('message', (event) => {
+      if (typeof event.data === "string") {
+        try {
+          const json = JSON.parse(event.data);
+          console.log("Received JSON:", json);
+        } catch (e) {
+          console.warn("Received invalid JSON:", event.data);
+        }
+      } else {
+        const img = document.getElementById("output");
+        const blob = new Blob([event.data], { type: 'image/jpeg' });
+        img.src = URL.createObjectURL(blob);
+      }
+    });
+
+    ws.addEventListener('close', () => {
+      console.warn("WebSocket closed");
+    });
+
+    ws.addEventListener('error', (err) => {
+      console.error("WebSocket error:", err);
+    });
+  </script>
+</body>
+</html>

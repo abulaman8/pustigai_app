@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import cv2
 import numpy as np
 import random
+import json
 
 app = FastAPI()
 
@@ -33,13 +34,26 @@ def process_frame(frame_bytes):
     return encoded.tobytes()
 
 
+
 @app.websocket("/ws/stream")
 async def stream_video(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            data = await websocket.receive_bytes()
-            processed = process_frame(data)
-            await websocket.send_bytes(processed)
+            message = await websocket.receive()
+            
+            if "bytes" in message:
+                frame_bytes = message["bytes"]
+                processed = process_frame(frame_bytes)
+                await websocket.send_bytes(processed)
+
+            elif "text" in message:
+                try:
+                    data = json.loads(message["text"])
+                    print("Received JSON:", data)
+                    await websocket.send_text(json.dumps({"status": "ok", "type": "json_ack"}))
+                except json.JSONDecodeError:
+                    print("Invalid JSON received")
     except Exception as e:
         print("WebSocket disconnected:", e)
+

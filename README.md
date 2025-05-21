@@ -31,5 +31,5 @@ pip install -r requirements.txt
 ### Run the API server
 
 ```bash
-uvicorn api:app --reload
+python main.py
 ```

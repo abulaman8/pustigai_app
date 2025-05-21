@@ -1,3 +1,6 @@
+dist/
+dist-old/
+build/
+build-old/
 venv/
 __pycache__/
-

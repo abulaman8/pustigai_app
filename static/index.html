@@ -1,77 +1,216 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Video Streaming Client</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fade-in animation for feedback */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .feedback-animate {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
 </head>
-<body>
-  <h1>Live Webcam Stream</h1>
-  <video id="video" autoplay playsinline width="640" height="480"></video>
-  <canvas id="canvas" style="display: none;"></canvas>
-  <img src="" alt="output" id="output">
+<body class="bg-gradient-to-br from-blue-100 to-purple-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl p-6 max-w-3xl w-full">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Exercise Tracker</h1>
+        
+        <!-- Exercise Selection -->
+        <div class="flex flex-col sm:flex-row justify-center items-center mb-6 gap-4">
+            <select id="exercise-select" class="border border-gray-300 rounded-md p-2 text-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="" disabled selected>Select an exercise</option>
+            </select>
+            <button id="start-button" disabled onclick="startExercise()" 
+                    class="bg-green-500 text-white px-6 py-2 rounded-md text-lg hover:bg-green-600 focus:ring-2 focus:ring-green-400 focus:outline-none disabled:bg-gray-400 disabled:cursor-not-allowed transition">
+                Start Exercise
+            </button>
+        </div>
+        
+        <!-- Canvas -->
+        <div class="relative flex justify-center">
+            <canvas id="canvas" width="640" height="920" class="border border-gray-300 rounded-md"></canvas>
+            <!-- Feedback Overlay -->
+            <div id="feedback" class="absolute bottom-4 bg-black bg-opacity-60 text-white text-lg font-semibold py-2 px-4 rounded-md max-w-[90%] text-center feedback-animate">
+                Select an exercise and start.
+            </div>
+        </div>
+    </div>
 
-  <script>
-    const video = document.getElementById('video');
-    const ws = new WebSocket('ws://127.0.0.1:8000/ws/stream');
+    <script>
+        let ws = null;
+        let stream = null;
+        let video = null;
+        let canvas = null;
+        let ctx = null;
+        let isStreaming = false;
+        let lastFeedback = ''; // Store last feedback to prevent redundant updates
 
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      .then(stream => {
-        video.srcObject = stream;
-      });
-
-    function sendFrameAndMetadata() {
-      if (video.videoWidth === 0 || video.videoHeight === 0) return;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-
-      canvas.toBlob((blob) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          
-          const metadata = {
-            timestamp: Date.now(),
-            resolution: {
-              width: video.videoWidth,
-              height: video.videoHeight
-            },
-            type: "frame-meta"
-          };
-          ws.send(JSON.stringify(metadata));
-
-          
-          blob.arrayBuffer().then((buf) => ws.send(buf));
+        async function loadExercises() {
+            try {
+                const response = await fetch('/exercises');
+                const exercises = await response.json();
+                const select = document.getElementById('exercise-select');
+                exercises.forEach(ex => {
+                    const option = document.createElement('option');
+                    option.value = ex.id;
+                    option.textContent = ex.name;
+                    select.appendChild(option);
+                });
+                document.getElementById('start-button').disabled = false;
+            } catch (error) {
+                console.error('Failed to load exercises:', error);
+                updateFeedback('Error loading exercises');
+            }
         }
-      }, 'image/jpeg');
-    }
 
-    ws.addEventListener('open', () => {
-      setInterval(sendFrameAndMetadata, 100); 
-    });
+        async function startExercise() {
+            if (isStreaming) return;
+            isStreaming = true;
+            document.getElementById('start-button').disabled = true;
+            document.getElementById('exercise-select').disabled = true;
 
-    ws.addEventListener('message', (event) => {
-      if (typeof event.data === "string") {
-        try {
-          const json = JSON.parse(event.data);
-          console.log("Received JSON:", json);
-        } catch (e) {
-          console.warn("Received invalid JSON:", event.data);
+            video = document.createElement('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => resolve();
+                });
+                await video.play();
+                connectWebSocket();
+            } catch (error) {
+                console.error('Failed to start video:', error);
+                updateFeedback('Error accessing webcam');
+                resetInterface();
+            }
         }
-      } else {
-        const img = document.getElementById("output");
-        const blob = new Blob([event.data], { type: 'image/jpeg' });
-        img.src = URL.createObjectURL(blob);
-      }
-    });
 
-    ws.addEventListener('close', () => {
-      console.warn("WebSocket closed");
-    });
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8000/ws/stream');
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                sendUserData();
+                sendFrames();
+            };
+            ws.onmessage = (event) => {
+                console.log('received message', event);
+                if (event.data instanceof Blob) {
+                    const url = URL.createObjectURL(event.data);
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        URL.revokeObjectURL(url);
+                    };
+                    img.src = url;
+                } else {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.feedback && data.feedback !== lastFeedback) {
+                            updateFeedback(data.feedback);
+                            lastFeedback = data.feedback;
+                        }
+                        if (data.rtn1 === 'complete' && !data.next_exer) {
+                            stopStream();
+                            resetInterface();
+                        }
+                    } catch (error) {
+                        console.error('Failed to parse message:', error);
+                    }
+                }
+            };
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                stopStream();
+                resetInterface();
+            };
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateFeedback('WebSocket connection error');
+                stopStream();
+                resetInterface();
+            };
+        }
 
-    ws.addEventListener('error', (err) => {
-      console.error("WebSocket error:", err);
-    });
-  </script>
+        function updateFeedback(message) {
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.textContent = message;
+            // Re-apply animation
+            feedbackEl.classList.remove('feedback-animate');
+            void feedbackEl.offsetWidth; // Trigger reflow
+            feedbackEl.classList.add('feedback-animate');
+        }
+
+        function sendUserData() {
+            const exerciseId = document.getElementById('exercise-select').value;
+            const userData = {
+                user_id: "us001",
+                exercise_id: exerciseId
+            };
+            ws.send(JSON.stringify(userData));
+        }
+
+        function sendFrames() {
+            if (ws.readyState === WebSocket.OPEN && isStreaming && video.videoWidth > 0 && video.videoHeight > 0) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = video.videoWidth;
+                tempCanvas.height = video.videoHeight;
+                tempCanvas.getContext('2d').drawImage(video, 0, 0);
+                tempCanvas.toBlob(blob => {
+                    if (blob) {
+                        blob.arrayBuffer().then(buffer => {
+                            ws.send(buffer);
+                            setTimeout(sendFrames, 1000 / 16); // 16 FPS
+                        }).catch(error => {
+                            console.error('Failed to convert blob to array buffer:', error);
+                        });
+                    } else {
+                        console.warn('No blob generated, skipping frame');
+                        setTimeout(sendFrames, 1000 / 16);
+                    }
+                }, 'image/jpeg', 0.9);
+            } else {
+                console.log('Not sending frame: WebSocket not open, not streaming, or invalid video dimensions');
+                if (isStreaming) {
+                    setTimeout(sendFrames, 1000 / 16);
+                }
+            }
+        }
+
+        function stopStream() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (video) {
+                video.srcObject = null;
+                video = null;
+            }
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function resetInterface() {
+            isStreaming = false;
+            lastFeedback = '';
+            document.getElementById('start-button').disabled = false;
+            document.getElementById('exercise-select').disabled = false;
+            updateFeedback('Select an exercise and start.');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        window.onload = loadExercises;
+    </script>
 </body>
 </html>

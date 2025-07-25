@@ -14,25 +14,24 @@ import traceback
 from sqlalchemy.orm import Session
 from fastapi.templating import Jinja2Templates
 
-# New imports
+
 from sql_app import crud, models, schemas
 from sql_app.database import SessionLocal, engine
 
-# This will create the database tables if they don't exist on startup
+
 models.Base.metadata.create_all(bind=engine)
 
-# Add src/ to sys.path for PyArmor runtime
+
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), 'src')))
 
 app = FastAPI()
 
-# Mount static files & templates
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-# Signal handler for graceful shutdown
 def handle_shutdown(signum, frame):
     print("Received shutdown signal")
     sys.exit(0)
@@ -41,8 +40,6 @@ def handle_shutdown(signum, frame):
 signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
-# Dependency to get DB session
-
 
 def get_db():
     db = SessionLocal()
@@ -50,8 +47,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-# --- Main App Endpoints ---
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -65,8 +60,6 @@ async def get_exercises_api(db: Session = Depends(get_db)):
     exercises = crud.get_all_exercises(db)
     return [{"id": ex.id, "name": ex.name} for ex in exercises]
 
-
-# --- CRUD HTML Endpoints ---
 
 @app.get("/manage-exercises", response_class=HTMLResponse)
 async def manage_exercises_page(request: Request, db: Session = Depends(get_db)):
@@ -107,8 +100,6 @@ async def handle_edit_exercise(request: Request, exid: str, db: Session = Depend
     return RedirectResponse(url="/manage-exercises", status_code=303)
 
 
-# --- CRUD API Endpoint ---
-
 @app.delete("/exercises/{exid}")
 async def delete_exercise_api(exid: str, db: Session = Depends(get_db)):
     success = crud.delete_exercise(db, exid)
@@ -116,8 +107,6 @@ async def delete_exercise_api(exid: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Exercise not found")
     return {"message": "Exercise deleted successfully"}
 
-
-# --- WebSocket Endpoint ---
 
 @app.websocket("/ws/stream")
 async def stream_video(websocket: WebSocket):

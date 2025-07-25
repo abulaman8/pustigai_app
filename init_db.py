@@ -1,7 +1,6 @@
 from sql_app.database import SessionLocal, engine
 from sql_app.models import Base, User, Exercise
 
-# Simulated original data
 users_db = {
     "us001": {"user_name": "John Doe", "exercise": "ex001"}
 }

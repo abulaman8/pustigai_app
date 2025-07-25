@@ -1,4 +1,7 @@
-# Simulated database
+from sql_app.database import SessionLocal, engine
+from sql_app.models import Base, User, Exercise
+
+# Simulated original data
 users_db = {
     "us001": {"user_name": "John Doe", "exercise": "ex001"}
 }
@@ -59,9 +62,34 @@ exercises_db = {
 }
 
 
-def get_user(user_id):
-    return users_db.get(user_id)
+def init_db():
+    # Create all tables in the database.
+    Base.metadata.create_all(bind=engine)
+
+    db = SessionLocal()
+
+    # Check if data already exists
+    if db.query(Exercise).first():
+        print("Database already seeded.")
+        db.close()
+        return
+
+    # Add exercises
+    for exid, data in exercises_db.items():
+        db_exercise = Exercise(id=exid, **data)
+        db.add(db_exercise)
+    db.commit()
+
+    # Add users
+    for userid, data in users_db.items():
+        db_user = User(
+            id=userid, user_name=data['user_name'], exercise_id=data['exercise'])
+        db.add(db_user)
+    db.commit()
+
+    print("Database seeded successfully.")
+    db.close()
 
 
-def get_exercise(exid):
-    return exercises_db.get(exid)
+if __name__ == "__main__":
+    init_db()

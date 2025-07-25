@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'Edit' if exercise else 'Add' }} Exercise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ 'Edit' if exercise else 'Add' }} Exercise</h1>
+        <form action="{{ action_url }}" method="post" class="bg-white p-6 rounded-lg shadow-md grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <!-- General Info -->
+            <div class="col-span-1">
+                <label for="id" class="block text-sm font-medium text-gray-700">Exercise ID</label>
+                <input type="text" name="id" id="id" value="{{ exercise.id if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" {{ 'readonly' if exercise }}>
+            </div>
+            <div class="col-span-1">
+                <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                <input type="text" name="name" id="name" value="{{ exercise.name if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+            <div class="col-span-1">
+                <label for="source" class="block text-sm font-medium text-gray-700">Source Video</label>
+                <input type="text" name="source" id="source" value="{{ exercise.source if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+
+            <!-- Add all other fields from your model here in the same pattern -->
+            <!-- Example for a numeric field -->
+            <div class="col-span-1">
+                <label for="rep" class="block text-sm font-medium text-gray-700">Repetitions</label>
+                <input type="number" name="rep" id="rep" value="{{ exercise.rep if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            </div>
+
+            <!-- Example for a JSON field -->
+            <div class="col-span-full">
+                <label for="ub_1" class="block text-sm font-medium text-gray-700">Upper Bounds 1 (JSON array)</label>
+                <textarea name="ub_1" id="ub_1" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm font-mono text-sm">{{ exercise.ub_1 | tojson if exercise }}</textarea>
+                <p class="mt-1 text-xs text-gray-500">Enter a valid JSON list, e.g., [170, 170, 90]</p>
+            </div>
+            
+            <!-- ... Continue for ALL fields in your model ... -->
+
+
+            <!-- Form Actions -->
+            <div class="col-span-full flex justify-end gap-4 mt-4">
+                <a href="/manage-exercises" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-300 transition">Cancel</a>
+                <button type="submit" class="bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600 transition">
+                    {{ 'Update' if exercise else 'Save' }} Exercise
+                </button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

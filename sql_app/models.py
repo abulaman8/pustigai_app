@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, JSON, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -35,39 +35,43 @@ class Exercise(Base):
     pass_id = Column(String)
 
     # State 1
-    ub_1 = Column(JSON)
-    lb_1 = Column(JSON)
     pass_1 = Column(String)
     lb_error_1 = Column(String)
     ub_error_1 = Column(String)
     sub_rep_1 = Column(Integer)
     sub_state_1 = Column(Integer)
-    sub_ub_11 = Column(JSON)
-    sub_lb_11 = Column(JSON)
     sub_pass_11 = Column(String)
     sub_lb_error_11 = Column(String)
     sub_ub_error_11 = Column(String)
-    sub_ub_12 = Column(JSON)
-    sub_lb_12 = Column(JSON)
     sub_pass_12 = Column(String)
     sub_lb_error_12 = Column(String)
     sub_ub_error_12 = Column(String)
 
     # State 2
-    ub_2 = Column(JSON)
-    lb_2 = Column(JSON)
     pass_2 = Column(String)
     lb_error_2 = Column(String)
     ub_error_2 = Column(String)
     sub_rep_2 = Column(Integer)
     sub_state_2 = Column(Integer)
-    sub_ub_21 = Column(JSON)
-    sub_lb_21 = Column(JSON)
     sub_pass_21 = Column(String)
     sub_lb_error_21 = Column(String)
     sub_ub_error_21 = Column(String)
-    sub_ub_22 = Column(JSON)
-    sub_lb_22 = Column(JSON)
     sub_pass_22 = Column(String)
     sub_lb_error_22 = Column(String)
     sub_ub_error_22 = Column(String)
+    # -- New Optional Sub-State 2 Fields --
+    sub_pass_23 = Column(String, nullable=True)
+    sub_lb_error_23 = Column(String, nullable=True)
+    sub_ub_error_23 = Column(String, nullable=True)
+    sub_pass_24 = Column(String, nullable=True)
+    sub_lb_error_24 = Column(String, nullable=True)
+    sub_ub_error_24 = Column(String, nullable=True)
+
+    # -- Typo Fix Fields --
+    sub_lb_pass_23 = Column(String, nullable=True)  # Added this field
+    sub_lb_pass_24 = Column(String, nullable=True)  # Added this field
+
+    # -- New Optional State 3 Fields --
+    pass_3 = Column(String, nullable=True)
+    lb_error_3 = Column(String, nullable=True)
+    ub_error_3 = Column(String, nullable=True)

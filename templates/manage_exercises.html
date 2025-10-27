@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF--8">
     <title>Manage Exercises</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto p-8">
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Manage Exercises</h1>
-            <a href="/add-exercise" class="bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-600 transition">
-                + Add New Exercise
+            <h1 class="text-3xl font-bold text-gray-800">Manage Exercise Feedback</h1>
+            <a href="/" class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors">
+                ← Back to Exercise Tracker
             </a>
         </div>
         <div class="bg-white shadow-md rounded-lg overflow-hidden">
@@ -28,8 +28,7 @@
                         <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm">{{ exercise.id }}</td>
                         <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm">{{ exercise.name }}</td>
                         <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                            <a href="/edit-exercise/{{ exercise.id }}" class="text-indigo-600 hover:text-indigo-900 mr-4">Edit</a>
-                            <button onclick="deleteExercise('{{ exercise.id }}')" class="text-red-600 hover:text-red-900">Delete</button>
+                            <a href="/edit-exercise/{{ exercise.id }}" class="text-indigo-600 hover:text-indigo-900 mr-4">Edit Feedback</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -37,21 +36,5 @@
             </table>
         </div>
     </div>
-    <script>
-        function deleteExercise(exid) {
-            if (confirm('Are you sure you want to delete this exercise?')) {
-                fetch(`/exercises/${exid}`, {
-                    method: 'DELETE',
-                })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        alert('Failed to delete exercise.');
-                    }
-                });
-            }
-        }
-    </script>
 </body>
 </html>

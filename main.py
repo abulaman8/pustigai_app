@@ -18,6 +18,21 @@ from fastapi.templating import Jinja2Templates
 from sql_app import crud, models, schemas
 from sql_app.database import SessionLocal, engine
 
+# === MODIFIED DATA IMPORT START ===
+# Import the obfuscated and split exercise data parts
+from src.obfuscated.exercise_data_part1 import exercises_db_part1
+from src.obfuscated.exercise_data_part2 import exercises_db_part2
+from src.obfuscated.exercise_data_part3 import exercises_db_part3
+from src.obfuscated.exercise_data_part4 import exercises_db_part4
+
+# Merge the dictionaries into a single master data source
+exercise_ip_data = {}
+exercise_ip_data.update(exercises_db_part1)
+exercise_ip_data.update(exercises_db_part2)
+exercise_ip_data.update(exercises_db_part3)
+exercise_ip_data.update(exercises_db_part4)
+# === MODIFIED DATA IMPORT END ===
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -67,24 +82,6 @@ async def manage_exercises_page(request: Request, db: Session = Depends(get_db))
     return templates.TemplateResponse("manage_exercises.html", {"request": request, "exercises": exercises})
 
 
-@app.get("/add-exercise", response_class=HTMLResponse)
-async def add_exercise_page(request: Request):
-    return templates.TemplateResponse("exercise_form.html", {"request": request, "exercise": None, "action_url": "/add-exercise"})
-
-
-@app.post("/add-exercise", response_class=RedirectResponse)
-async def handle_add_exercise(request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
-    # Convert form data to a dictionary to pass to the Pydantic model
-    exercise_dict = {key: value for key, value in form.items()}
-    # Create the Pydantic model instance for validation
-    exercise_data = schemas.ExerciseCreate(**exercise_dict)
-    # Create the exercise in the database
-    crud.create_exercise(db=db, exercise=exercise_data)
-    # Redirect to the management page (status_code 303 is correct for POST-redirect-GET)
-    return RedirectResponse(url="/manage-exercises", status_code=303)
-
-
 @app.get("/edit-exercise/{exid}", response_class=HTMLResponse)
 async def edit_exercise_page(request: Request, exid: str, db: Session = Depends(get_db)):
     exercise = crud.get_exercise(db, exid)
@@ -100,14 +97,6 @@ async def handle_edit_exercise(request: Request, exid: str, db: Session = Depend
     return RedirectResponse(url="/manage-exercises", status_code=303)
 
 
-@app.delete("/exercises/{exid}")
-async def delete_exercise_api(exid: str, db: Session = Depends(get_db)):
-    success = crud.delete_exercise(db, exid)
-    if not success:
-        raise HTTPException(status_code=404, detail="Exercise not found")
-    return {"message": "Exercise deleted successfully"}
-
-
 @app.websocket("/ws/stream")
 async def stream_video(websocket: WebSocket):
     await websocket.accept()
@@ -119,8 +108,6 @@ async def stream_video(websocket: WebSocket):
     is_initialized = False
     processing_task = None
 
-    # This is a placeholder for your frame processing logic.
-    # It must be defined within the WebSocket endpoint's scope.
     async def process_frames():
         proc = psutil.Process()
         while True:
@@ -128,12 +115,9 @@ async def stream_video(websocket: WebSocket):
                 batch = [frame_queue.popleft()
                          for _ in range(min(batch_size, len(frame_queue)))]
                 try:
-                    # Log memory usage
                     mem = proc.memory_info()
                     print(f"Process memory: {mem.rss / 1024 / 1024:.2f} MB")
-                    # Process frames directly
                     start_time = time.time()
-                    # Assuming process_frame_batch exists and is imported
                     from src.obfuscated.processor import process_frame_batch
                     results = await asyncio.to_thread(process_frame_batch, batch, session_data)
                     print(
@@ -159,11 +143,10 @@ async def stream_video(websocket: WebSocket):
                     print(
                         f"Processing error: {e}, traceback: {traceback.format_exc()}")
                     await websocket.send_text(json.dumps({"error": f"Processing error: {str(e)}"}))
-            await asyncio.sleep(0.083)  # ~12 FPS
+            await asyncio.sleep(0.083)
         return False
 
     try:
-        # Start the frame processing task
         processing_task = asyncio.create_task(process_frames())
 
         while True:
@@ -185,17 +168,22 @@ async def stream_video(websocket: WebSocket):
                         session_data["user_name"] = user_info.user_name
                         session_data["exid"] = exid
 
-                        exdata_obj = crud.get_exercise(db, exid)
-                        if exdata_obj:
-                            # Convert SQLAlchemy object to dictionary for processing
-                            session_data["exdata"] = crud.to_dict(exdata_obj)
+                        ip_data = exercise_ip_data.get(exid)
+                        feedback_data_obj = crud.get_exercise(db, exid)
+
+                        if ip_data and feedback_data_obj:
+                            feedback_data = crud.to_dict(feedback_data_obj)
+                            session_data["exdata"] = {
+                                **ip_data, **feedback_data}
+
                             is_initialized = True
                             print(
                                 f"Initialization successful: user={user_id}, exercise={exid}")
                             await websocket.send_text(json.dumps({"status": "ok", "message": "User and exercise data loaded"}))
                         else:
-                            print(f"Exercise not found: {exid}")
-                            await websocket.send_text(json.dumps({"error": "Exercise not found"}))
+                            print(f"Exercise data not found for ID: {exid}")
+                            await websocket.send_text(json.dumps({"error": "Exercise configuration could not be loaded."}))
+
                     else:
                         print(f"User not found: {user_id}")
                         await websocket.send_text(json.dumps({"error": "User not found"}))
@@ -221,5 +209,4 @@ async def stream_video(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     print("Starting FastAPI server")
-    # Recommended to run uvicorn with the string path for reload to work correctly
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

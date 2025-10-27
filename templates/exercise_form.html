@@ -2,50 +2,105 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ 'Edit' if exercise else 'Add' }} Exercise</title>
+    <title>Edit Exercise Feedback</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto p-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ 'Edit' if exercise else 'Add' }} Exercise</h1>
-        <form action="{{ action_url }}" method="post" class="bg-white p-6 rounded-lg shadow-md grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Edit Exercise Feedback for: {{ exercise.name }}</h1>
+        <form action="{{ action_url }}" method="post" class="bg-white p-6 rounded-lg shadow-md space-y-6">
             
             <!-- General Info -->
-            <div class="col-span-1">
-                <label for="id" class="block text-sm font-medium text-gray-700">Exercise ID</label>
-                <input type="text" name="id" id="id" value="{{ exercise.id if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" {{ 'readonly' if exercise }}>
-            </div>
-            <div class="col-span-1">
-                <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-                <input type="text" name="name" id="name" value="{{ exercise.name if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-            </div>
-            <div class="col-span-1">
-                <label for="source" class="block text-sm font-medium text-gray-700">Source Video</label>
-                <input type="text" name="source" id="source" value="{{ exercise.source if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-            </div>
+            <fieldset class="grid grid-cols-1 md:grid-cols-3 gap-6 border p-4 rounded-md">
+                <legend class="text-xl font-semibold px-2">General</legend>
+                <div>
+                    <label for="id" class="block text-sm font-medium text-gray-700">Exercise ID</label>
+                    <input type="text" name="id" id="id" value="{{ exercise.id }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100" readonly>
+                </div>
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" name="name" id="name" value="{{ exercise.name }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                 <div>
+                    <label for="rep" class="block text-sm font-medium text-gray-700">Repetitions</label>
+                    <input type="number" name="rep" id="rep" value="{{ exercise.rep }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="ori_pass" class="block text-sm font-medium text-gray-700">Orientation Pass</label>
+                    <input type="text" name="ori_pass" id="ori_pass" value="{{ exercise.ori_pass }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="ori_error" class="block text-sm font-medium text-gray-700">Orientation Error</label>
+                    <input type="text" name="ori_error" id="ori_error" value="{{ exercise.ori_error }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="cond_pass" class="block text-sm font-medium text-gray-700">Stance Pass</label>
+                    <input type="text" name="cond_pass" id="cond_pass" value="{{ exercise.cond_pass }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="cond_error" class="block text-sm font-medium text-gray-700">Stance Error</label>
+                    <input type="text" name="cond_error" id="cond_error" value="{{ exercise.cond_error }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="pass_move" class="block text-sm font-medium text-gray-700">Exercise Complete Msg</label>
+                    <input type="text" name="pass_move" id="pass_move" value="{{ exercise.pass_move }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div>
+                    <label for="error_move" class="block text-sm font-medium text-gray-700">Exercise Failed Msg</label>
+                    <input type="text" name="error_move" id="error_move" value="{{ exercise.error_move }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+            </fieldset>
 
-            <!-- Add all other fields from your model here in the same pattern -->
-            <!-- Example for a numeric field -->
-            <div class="col-span-1">
-                <label for="rep" class="block text-sm font-medium text-gray-700">Repetitions</label>
-                <input type="number" name="rep" id="rep" value="{{ exercise.rep if exercise }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
-            </div>
-
-            <!-- Example for a JSON field -->
-            <div class="col-span-full">
-                <label for="ub_1" class="block text-sm font-medium text-gray-700">Upper Bounds 1 (JSON array)</label>
-                <textarea name="ub_1" id="ub_1" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm font-mono text-sm">{{ exercise.ub_1 | tojson if exercise }}</textarea>
-                <p class="mt-1 text-xs text-gray-500">Enter a valid JSON list, e.g., [170, 170, 90]</p>
-            </div>
+            <!-- State 1 -->
+            <fieldset class="grid grid-cols-1 md:grid-cols-3 gap-6 border p-4 rounded-md">
+                <legend class="text-xl font-semibold px-2">State 1 Feedback</legend>
+                <div><label for="pass_1" class="block text-sm font-medium text-gray-700">Pass Msg</label><input type="text" name="pass_1" id="pass_1" value="{{ exercise.pass_1 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="ub_error_1" class="block text-sm font-medium text-gray-700">Angle Too High Msg</label><input type="text" name="ub_error_1" id="ub_error_1" value="{{ exercise.ub_error_1 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="lb_error_1" class="block text-sm font-medium text-gray-700">Angle Too Low Msg</label><input type="text" name="lb_error_1" id="lb_error_1" value="{{ exercise.lb_error_1 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- Sub State 1.1 -->
+                <div><label for="sub_pass_11" class="block text-sm font-medium text-gray-700">Sub-State 1.1 Pass</label><input type="text" name="sub_pass_11" id="sub_pass_11" value="{{ exercise.sub_pass_11 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_ub_error_11" class="block text-sm font-medium text-gray-700">Sub-State 1.1 High</label><input type="text" name="sub_ub_error_11" id="sub_ub_error_11" value="{{ exercise.sub_ub_error_11 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_lb_error_11" class="block text-sm font-medium text-gray-700">Sub-State 1.1 Low</label><input type="text" name="sub_lb_error_11" id="sub_lb_error_11" value="{{ exercise.sub_lb_error_11 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- Sub State 1.2 -->
+                <div><label for="sub_pass_12" class="block text-sm font-medium text-gray-700">Sub-State 1.2 Pass</label><input type="text" name="sub_pass_12" id="sub_pass_12" value="{{ exercise.sub_pass_12 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_ub_error_12" class="block text-sm font-medium text-gray-700">Sub-State 1.2 High</label><input type="text" name="sub_ub_error_12" id="sub_ub_error_12" value="{{ exercise.sub_ub_error_12 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_lb_error_12" class="block text-sm font-medium text-gray-700">Sub-State 1.2 Low</label><input type="text" name="sub_lb_error_12" id="sub_lb_error_12" value="{{ exercise.sub_lb_error_12 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+            </fieldset>
             
-            <!-- ... Continue for ALL fields in your model ... -->
-
+            <!-- State 2 & 3 -->
+            <fieldset class="grid grid-cols-1 md:grid-cols-3 gap-6 border p-4 rounded-md">
+                <legend class="text-xl font-semibold px-2">State 2 & 3 Feedback</legend>
+                <!-- State 2 -->
+                <div><label for="pass_2" class="block text-sm font-medium text-gray-700">State 2 Pass</label><input type="text" name="pass_2" id="pass_2" value="{{ exercise.pass_2 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="ub_error_2" class="block text-sm font-medium text-gray-700">State 2 High</label><input type="text" name="ub_error_2" id="ub_error_2" value="{{ exercise.ub_error_2 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="lb_error_2" class="block text-sm font-medium text-gray-700">State 2 Low</label><input type="text" name="lb_error_2" id="lb_error_2" value="{{ exercise.lb_error_2 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- Sub State 2.1 -->
+                <div><label for="sub_pass_21" class="block text-sm font-medium text-gray-700">Sub-State 2.1 Pass</label><input type="text" name="sub_pass_21" id="sub_pass_21" value="{{ exercise.sub_pass_21 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_ub_error_21" class="block text-sm font-medium text-gray-700">Sub-State 2.1 High</label><input type="text" name="sub_ub_error_21" id="sub_ub_error_21" value="{{ exercise.sub_ub_error_21 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_lb_error_21" class="block text-sm font-medium text-gray-700">Sub-State 2.1 Low</label><input type="text" name="sub_lb_error_21" id="sub_lb_error_21" value="{{ exercise.sub_lb_error_21 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- Sub State 2.2 -->
+                <div><label for="sub_pass_22" class="block text-sm font-medium text-gray-700">Sub-State 2.2 Pass</label><input type="text" name="sub_pass_22" id="sub_pass_22" value="{{ exercise.sub_pass_22 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_ub_error_22" class="block text-sm font-medium text-gray-700">Sub-State 2.2 High</label><input type="text" name="sub_ub_error_22" id="sub_ub_error_22" value="{{ exercise.sub_ub_error_22 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_lb_error_22" class="block text-sm font-medium text-gray-700">Sub-State 2.2 Low</label><input type="text" name="sub_lb_error_22" id="sub_lb_error_22" value="{{ exercise.sub_lb_error_22 }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- Sub State 2.3 -->
+                <div><label for="sub_pass_23" class="block text-sm font-medium text-gray-700">Sub-State 2.3 Pass</label><input type="text" name="sub_pass_23" id="sub_pass_23" value="{{ exercise.sub_pass_23 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_ub_error_23" class="block text-sm font-medium text-gray-700">Sub-State 2.3 High</label><input type="text" name="sub_ub_error_23" id="sub_ub_error_23" value="{{ exercise.sub_ub_error_23 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_lb_error_23" class="block text-sm font-medium text-gray-700">Sub-State 2.3 Low</label><input type="text" name="sub_lb_error_23" id="sub_lb_error_23" value="{{ exercise.sub_lb_error_23 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- Sub State 2.4 -->
+                <div><label for="sub_pass_24" class="block text-sm font-medium text-gray-700">Sub-State 2.4 Pass</label><input type="text" name="sub_pass_24" id="sub_pass_24" value="{{ exercise.sub_pass_24 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_ub_error_24" class="block text-sm font-medium text-gray-700">Sub-State 2.4 High</label><input type="text" name="sub_ub_error_24" id="sub_ub_error_24" value="{{ exercise.sub_ub_error_24 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="sub_lb_error_24" class="block text-sm font-medium text-gray-700">Sub-State 2.4 Low</label><input type="text" name="sub_lb_error_24" id="sub_lb_error_24" value="{{ exercise.sub_lb_error_24 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <!-- State 3 -->
+                <div><label for="pass_3" class="block text-sm font-medium text-gray-700">State 3 Pass</label><input type="text" name="pass_3" id="pass_3" value="{{ exercise.pass_3 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="ub_error_3" class="block text-sm font-medium text-gray-700">State 3 High</label><input type="text" name="ub_error_3" id="ub_error_3" value="{{ exercise.ub_error_3 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                <div><label for="lb_error_3" class="block text-sm font-medium text-gray-700">State 3 Low</label><input type="text" name="lb_error_3" id="lb_error_3" value="{{ exercise.lb_error_3 or '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+            </fieldset>
 
             <!-- Form Actions -->
             <div class="col-span-full flex justify-end gap-4 mt-4">
                 <a href="/manage-exercises" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-300 transition">Cancel</a>
                 <button type="submit" class="bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600 transition">
-                    {{ 'Update' if exercise else 'Save' }} Exercise
+                    Update Feedback
                 </button>
             </div>
         </form>

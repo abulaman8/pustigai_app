@@ -28,14 +28,6 @@ def update_exercise(db: Session, exid: str, exercise_data: dict):
         models.Exercise.id == exid).first()
     if db_exercise:
         for key, value in exercise_data.items():
-            # For JSON fields, ensure they are stored as JSON strings
-            if key in ['ub_1', 'lb_1', 'sub_ub_11', 'sub_lb_11', 'sub_ub_12', 'sub_lb_12', 'ub_2', 'lb_2', 'sub_ub_21', 'sub_lb_21', 'sub_ub_22', 'sub_lb_22']:
-                if isinstance(value, str):
-                    try:
-                        value = json.loads(value)
-                    except json.JSONDecodeError:
-                        # Handle case where string is not valid JSON
-                        pass
             setattr(db_exercise, key, value)
         db.commit()
         db.refresh(db_exercise)

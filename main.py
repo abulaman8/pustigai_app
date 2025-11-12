@@ -97,6 +97,25 @@ async def handle_edit_exercise(request: Request, exid: str, db: Session = Depend
     return RedirectResponse(url="/manage-exercises", status_code=303)
 
 
+@app.post("/update_exercise")
+async def update_exercise(update: schemas.ExerciseUpdate, db: Session = Depends(get_db)):
+    exercise = db.query(models.Exercise).filter(
+        models.Exercise.id == update.id).first()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    for key, value in update.updates.items():
+        if hasattr(exercise, key):
+            setattr(exercise, key, value)
+        else:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid field: {key}")
+
+    db.commit()
+    db.refresh(exercise)
+    return {"message": "Exercise updated successfully", "id": update.id}
+
+
 @app.websocket("/ws/stream")
 async def stream_video(websocket: WebSocket):
     await websocket.accept()

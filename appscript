@@ -1,0 +1,62 @@
+function onEdit(e) {
+  var sheet = e.source.getActiveSheet();
+  if (sheet.getName() !== 'exercises') return;
+  
+  var range = e.range;
+  var row = range.getRow();
+  var col = range.getColumn();
+  
+  if (row < 2 || col === 1) return;
+  
+  var rowData = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
+  var updates = {};
+  for (var i = 1; i < rowData.length; i++) {
+    var header = headers[i];
+    var value = rowData[i];
+    // Handle data types loosely (Apps Script sends as string, but FastAPI can handle conversion)
+    // For integers, try to parse; for floats too
+    if (header.includes('rep') || header.includes('timer') || header.includes('state') || header.includes('sub_rep') || header.includes('sub_state')) {
+      updates[header] = parseInt(value) || value;
+    } else if (header.includes('condition')) {
+      updates[header] = parseFloat(value) || value;
+    } else {
+      updates[header] = value;
+    }
+  }
+  
+  var id = rowData[0];
+  if (!id) return;
+  
+  var payload = {
+    id: id,
+    updates: updates
+  };
+  
+  var options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    var response = UrlFetchApp.fetch('YOUR_FASTAPI_URL/update_exercise', options);
+    if (response.getResponseCode() !== 200) {
+      console.log('Update failed: ' + response.getContentText());
+    } else {
+      console.log('Update successful for ID: ' + id);
+    }
+  } catch (error) {
+    console.log('Error sending update: ' + error.toString());
+  }
+}
+
+// Function to set up installable trigger if needed (run once manually)
+ function createTrigger() {
+   ScriptApp.newTrigger('onEdit')
+     .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+     .onEdit()
+     .create();
+ }

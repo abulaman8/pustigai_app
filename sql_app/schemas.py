@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any, Dict
 
 
 class ExerciseBase(BaseModel):
@@ -72,3 +72,8 @@ class ExerciseCreate(ExerciseBase):
 class Exercise(ExerciseBase):
     class Config:
         from_attributes = True
+
+
+class ExerciseUpdate(BaseModel):
+    id: str
+    updates: Dict[str, Any]

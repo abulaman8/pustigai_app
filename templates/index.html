@@ -1,3 +1,5 @@
+<!-- FILE: templates/index.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,15 +15,9 @@
         .feedback-animate {
             animation: fadeIn 0.5s ease-out;
         }
-        /* Custom styles for better mobile experience */
         @media (max-width: 768px) {
-            body {
-                padding: 0;
-            }
-            .main-container {
-                border-radius: 0;
-                min-height: 100vh;
-            }
+            body { padding: 0; }
+            .main-container { border-radius: 0; min-height: 100vh; }
         }
     </style>
 </head>
@@ -54,9 +50,12 @@
         
         <!-- Video and Stats -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="relative lg:col-span-2">
+            <div class="relative lg:col-span-2 bg-black rounded-lg overflow-hidden">
                 <div class="aspect-w-4 aspect-h-3">
-                    <canvas id="canvas" width="640" height="480" class="border-2 border-gray-300 rounded-lg w-full h-full bg-black"></canvas>
+                    <!-- The video element shows the clean, real-time webcam feed -->
+                    <video id="video-feed" class="w-full h-full" playsinline autoplay muted></video>
+                    <!-- The canvas is positioned directly on top for drawing overlays -->
+                    <canvas id="overlay-canvas" class="absolute top-0 left-0 w-full h-full"></canvas>
                 </div>
                 <div id="feedback" class="feedback-animate absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 text-white text-lg font-semibold py-2 px-4 rounded-md text-center">
                     Welcome! Select an exercise to begin.
@@ -73,7 +72,6 @@
                         <span class="font-semibold text-gray-600 block mb-1">Repetitions:</span>
                         <span id="rep-count" class="ml-2 font-mono text-blue-600 text-2xl font-bold">0 / 3</span>
                     </div>
-                    <!-- Add more stats here if needed -->
                 </div>
             </div>
         </div>
@@ -82,11 +80,46 @@
     <script>
         let ws = null;
         let stream = null;
-        let video = null;
-        let canvas = null;
-        let ctx = null;
+        let videoEl = null;
+        let canvasEl = null;
+        let canvasCtx = null;
         let isStreaming = false;
         let lastFeedback = '';
+
+        // --- Drawing Helper Functions ---
+        const POSE_CONNECTIONS = [[11, 12], [11, 23], [12, 24], [23, 24], [23, 25], [24, 26], [25, 27], [26, 28], [27, 29], [28, 30], [29, 31], [30, 32]];
+        
+        function drawLandmarks(landmarks) {
+            if (!canvasCtx || !canvasEl) return;
+            canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            if (!landmarks || landmarks.length === 0) return;
+
+            // Draw connections
+            canvasCtx.lineWidth = 5;
+            canvasCtx.strokeStyle = 'rgba(40, 220, 40, 0.8)';
+            POSE_CONNECTIONS.forEach(pair => {
+                if (landmarks[pair[0]] && landmarks[pair[1]]) {
+                    const p1 = landmarks[pair[0]];
+                    const p2 = landmarks[pair[1]];
+                    if (p1.visibility > 0.5 && p2.visibility > 0.5) {
+                        canvasCtx.beginPath();
+                        canvasCtx.moveTo(p1.x * canvasEl.width, p1.y * canvasEl.height);
+                        canvasCtx.lineTo(p2.x * canvasEl.width, p2.y * canvasEl.height);
+                        canvasCtx.stroke();
+                    }
+                }
+            });
+
+            // Draw landmarks
+            canvasCtx.fillStyle = 'rgba(220, 40, 40, 0.9)';
+            landmarks.forEach(lm => {
+                if (lm && lm.visibility > 0.5) {
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(lm.x * canvasEl.width, lm.y * canvasEl.height, 6, 0, 2 * Math.PI);
+                    canvasCtx.fill();
+                }
+            });
+        }
 
         // --- UI Helper Functions ---
         function updateFeedback(message) {
@@ -95,25 +128,21 @@
             const feedbackEl = document.getElementById('feedback');
             feedbackEl.textContent = message;
             feedbackEl.classList.remove('feedback-animate');
-            void feedbackEl.offsetWidth; // Trigger reflow to restart animation
+            void feedbackEl.offsetWidth;
             feedbackEl.classList.add('feedback-animate');
         }
         function updateStatus(message) { document.getElementById('status-text').textContent = message; }
-        function updateReps(current, total) { document.getElementById('rep-count').textContent = `${current} / ${total}`; }
+        function updateReps(current, total) { document.getElementById('rep-count').textContent = `${current} / ${total || 3}`; }
 
         // --- Core Application Logic ---
         async function loadExercises() {
             try {
                 const response = await fetch('/exercises-api');
-                if (!response.ok) throw new Error('Network response was not ok');
                 const exercises = await response.json();
                 const select = document.getElementById('exercise-select');
-                // Clear existing options except the first placeholder
                 select.options.length = 1;
                 exercises.forEach(ex => {
-                    const option = document.createElement('option');
-                    option.value = ex.id;
-                    option.textContent = ex.name;
+                    const option = new Option(ex.name, ex.id);
                     select.appendChild(option);
                 });
             } catch (error) {
@@ -137,24 +166,27 @@
             updateStatus('Initializing...');
             updateFeedback('Starting webcam...');
 
-            video = document.createElement('video');
-            canvas = document.getElementById('canvas');
-            ctx = canvas.getContext('2d');
+            videoEl = document.getElementById('video-feed');
+            canvasEl = document.getElementById('overlay-canvas');
+            canvasCtx = canvasEl.getContext('2d');
+
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                await new Promise(resolve => { video.onloadedmetadata = resolve; });
-                await video.play();
-                connectWebSocket();
+                stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                videoEl.srcObject = stream;
+                videoEl.onloadedmetadata = () => {
+                    canvasEl.width = videoEl.videoWidth;
+                    canvasEl.height = videoEl.videoHeight;
+                    videoEl.play();
+                    connectWebSocket();
+                };
             } catch (error) {
                 console.error('Failed to start video:', error);
                 updateFeedback('Error: Webcam access denied.');
-                stopStream(); // Reset UI
+                stopStream();
             }
         }
 
         function connectWebSocket() {
-            // Use window.location.host to make it work on any network
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/stream`);
 
@@ -165,40 +197,32 @@
             };
 
             ws.onmessage = (event) => {
-                if (event.data instanceof Blob) {
-                    const url = URL.createObjectURL(event.data);
-                    const img = new Image();
-                    img.onload = () => {
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        URL.revokeObjectURL(url);
-                    };
-                    img.src = url;
-                } else {
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (data.error) {
-                            updateFeedback(`Error: ${data.error}`);
-                            stopStream();
-                            return;
-                        }
-
-                        if (data.feedback) updateFeedback(data.feedback);
-                        if (data.rtn1) updateStatus(data.rtn1);
-                        if (data.repe !== undefined) updateReps(data.repe, 3); // Assuming total is 3 for now
-
-                        if (data.rtn1 === 'complete' && !data.next_exer) {
-                            updateFeedback("Exercise complete! Well done!");
-                            stopStream();
-                        }
-                    } catch (error) {
-                        console.error('Failed to parse message:', error);
+                // The client now ONLY receives JSON data, no more blobs.
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.error) {
+                        updateFeedback(`Error: ${data.error}`);
+                        stopStream();
+                        return;
                     }
+
+                    if(data.landmarks) drawLandmarks(data.landmarks);
+                    if(data.feedback) updateFeedback(data.feedback);
+                    if(data.rtn1) updateStatus(data.rtn1);
+                    if(data.repe !== undefined) updateReps(data.repe);
+
+                    if (data.rtn1 === 'complete' && !data.next_exer) {
+                        updateFeedback("Exercise complete! Well done!");
+                        stopStream();
+                    }
+                } catch (error) {
+                    console.error('Failed to parse message:', event.data, error);
                 }
             };
 
             ws.onclose = () => {
                 console.log('WebSocket disconnected');
-                if (isStreaming) { // Only reset if the closure was unexpected
+                if (isStreaming) {
                     updateFeedback('Connection lost. Please try again.');
                     stopStream();
                 }
@@ -214,34 +238,29 @@
         function sendUserData() {
             if (ws?.readyState !== WebSocket.OPEN) return;
             const exerciseId = document.getElementById('exercise-select').value;
-            const userData = { user_id: "us001", exercise_id: exerciseId };
-            ws.send(JSON.stringify(userData));
+            ws.send(JSON.stringify({ user_id: "us001", exercise_id: exerciseId }));
         }
 
         function sendFrames() {
-            if (ws?.readyState !== WebSocket.OPEN || !isStreaming || !video || video.paused || video.ended || video.videoWidth === 0) {
-                return;
-            }
+            if (!isStreaming || !videoEl || videoEl.paused || videoEl.ended) return;
             
-            // Draw video to a temporary canvas and send as a blob
+            // Draw video to a temporary canvas to get a blob for sending
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+            tempCanvas.width = videoEl.videoWidth;
+            tempCanvas.height = videoEl.videoHeight;
+            tempCanvas.getContext('2d').drawImage(videoEl, 0, 0);
             
             tempCanvas.toBlob(blob => {
                 if (blob && ws?.readyState === WebSocket.OPEN) {
                     ws.send(blob);
                 }
+                // Schedule the next frame to be sent
+                if(isStreaming) setTimeout(sendFrames, 1000 / 15); // ~15 FPS
             }, 'image/jpeg', 0.8);
-
-            // Schedule the next frame
-            setTimeout(sendFrames, 1000 / 15); // ~15 FPS
         }
         
         function stopStream() {
-            isStreaming = false; // Signal that we are stopping intentionally
+            isStreaming = false;
             if (ws) {
                 ws.close(1000, "Client initiated stop");
                 ws = null;
@@ -250,9 +269,8 @@
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
-            if (video) {
-                video.srcObject = null;
-                video = null;
+            if (videoEl) {
+                videoEl.srcObject = null;
             }
             resetInterface();
         }
@@ -263,12 +281,11 @@
             document.getElementById('exercise-select').disabled = false;
             updateFeedback('Select an exercise and start.');
             updateStatus('Idle');
-            updateReps(0, 3);
-            if (ctx) {
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            updateReps(0);
+            if (canvasCtx) {
+                canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
             }
-            lastFeedback = ''; // Reset last feedback to allow re-displaying initial message
+            lastFeedback = '';
         }
         
         window.onload = () => {

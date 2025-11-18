@@ -1,3 +1,5 @@
+# FILE: main.py
+
 import psutil
 import signal
 from collections import deque
@@ -14,18 +16,15 @@ import traceback
 from sqlalchemy.orm import Session
 from fastapi.templating import Jinja2Templates
 
-
 from sql_app import crud, models, schemas
 from sql_app.database import SessionLocal, engine
 
 # === MODIFIED DATA IMPORT START ===
-# Import the obfuscated and split exercise data parts
 from src.obfuscated.exercise_data_part1 import exercises_db_part1
 from src.obfuscated.exercise_data_part2 import exercises_db_part2
 from src.obfuscated.exercise_data_part3 import exercises_db_part3
 from src.obfuscated.exercise_data_part4 import exercises_db_part4
 
-# Merge the dictionaries into a single master data source
 exercise_ip_data = {}
 exercise_ip_data.update(exercises_db_part1)
 exercise_ip_data.update(exercises_db_part2)
@@ -33,15 +32,12 @@ exercise_ip_data.update(exercises_db_part3)
 exercise_ip_data.update(exercises_db_part4)
 # === MODIFIED DATA IMPORT END ===
 
-
 models.Base.metadata.create_all(bind=engine)
-
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), 'src')))
 
 app = FastAPI()
-
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -62,6 +58,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# --- All your HTTP routes (@app.get, @app.post) remain exactly the same ---
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -103,17 +101,16 @@ async def update_exercise(update: schemas.ExerciseUpdate, db: Session = Depends(
         models.Exercise.id == update.id).first()
     if not exercise:
         raise HTTPException(status_code=404, detail="Exercise not found")
-
     for key, value in update.updates.items():
         if hasattr(exercise, key):
             setattr(exercise, key, value)
         else:
             raise HTTPException(
                 status_code=400, detail=f"Invalid field: {key}")
-
     db.commit()
     db.refresh(exercise)
     return {"message": "Exercise updated successfully", "id": update.id}
+# --- End of unchanged HTTP routes ---
 
 
 @app.websocket("/ws/stream")
@@ -122,8 +119,8 @@ async def stream_video(websocket: WebSocket):
     db = SessionLocal()
 
     session_data = {"start_time": None}
-    frame_queue = deque(maxlen=10)
-    batch_size = 2
+    frame_queue = deque(maxlen=30)  # A buffer for incoming frames
+    batch_size = 1  # Process one frame at a time to minimize latency
     is_initialized = False
     processing_task = None
 
@@ -131,43 +128,45 @@ async def stream_video(websocket: WebSocket):
         proc = psutil.Process()
         while True:
             if len(frame_queue) >= batch_size:
+                # Get the latest frames from the queue
                 batch = [frame_queue.popleft()
                          for _ in range(min(batch_size, len(frame_queue)))]
                 try:
                     mem = proc.memory_info()
                     print(f"Process memory: {mem.rss / 1024 / 1024:.2f} MB")
                     start_time = time.time()
+
                     from src.obfuscated.processor import process_frame_batch
                     results = await asyncio.to_thread(process_frame_batch, batch, session_data)
                     print(
-                        f"Processor output: {results}, processing time: {time.time() - start_time:.3f}s")
-                    for processed, result in results:
-                        if processed:
-                            processed_b64 = base64.b64encode(
-                                processed).decode('utf-8')
-                            await websocket.send_bytes(base64.b64decode(processed_b64))
-                            await websocket.send_text(json.dumps({
-                                "feedback": result["feedback"],
-                                "rtn1": result["rtn1"],
-                                "next_exer": result["next_exer"],
-                                "repe": result["repe"]
-                            }))
-                            if result["rtn1"] == "complete" and not result["next_exer"]:
-                                print("Exercise complete, stopping processing")
-                                return True
-                        else:
-                            print(f"Processing error in result: {result}")
-                            await websocket.send_text(json.dumps({"error": result.get("error", "Unknown error")}))
+                        f"Processor output received, processing time: {time.time() - start_time:.3f}s")
+
+                    # *** MODIFIED PART: Send a single JSON payload ***
+                    for landmarks, result in results:
+                        # Combine landmarks and other data into one JSON object
+                        response_payload = {
+                            "landmarks": landmarks,
+                            # Unpack the result dict (feedback, rtn1, etc.)
+                            **result
+                        }
+                        await websocket.send_text(json.dumps(response_payload))
+
+                        if result.get("rtn1") == "complete" and not result.get("next_exer"):
+                            print("Exercise complete, stopping processing")
+                            return True
                 except Exception as e:
                     print(
                         f"Processing error: {e}, traceback: {traceback.format_exc()}")
                     await websocket.send_text(json.dumps({"error": f"Processing error: {str(e)}"}))
-            await asyncio.sleep(0.083)
+
+            # Control the processing loop speed. ~15 FPS.
+            await asyncio.sleep(0.066)
         return False
 
     try:
         processing_task = asyncio.create_task(process_frames())
 
+        # This entire receiving loop remains the same. It's already well-structured.
         while True:
             message = await websocket.receive()
             if "bytes" in message:
@@ -186,15 +185,12 @@ async def stream_video(websocket: WebSocket):
                     if user_info:
                         session_data["user_name"] = user_info.user_name
                         session_data["exid"] = exid
-
                         ip_data = exercise_ip_data.get(exid)
                         feedback_data_obj = crud.get_exercise(db, exid)
-
                         if ip_data and feedback_data_obj:
                             feedback_data = crud.to_dict(feedback_data_obj)
                             session_data["exdata"] = {
                                 **ip_data, **feedback_data}
-
                             is_initialized = True
                             print(
                                 f"Initialization successful: user={user_id}, exercise={exid}")
@@ -202,7 +198,6 @@ async def stream_video(websocket: WebSocket):
                         else:
                             print(f"Exercise data not found for ID: {exid}")
                             await websocket.send_text(json.dumps({"error": "Exercise configuration could not be loaded."}))
-
                     else:
                         print(f"User not found: {user_id}")
                         await websocket.send_text(json.dumps({"error": "User not found"}))

@@ -32,9 +32,9 @@
         </header>
         
         <!-- Controls -->
-        <div id="controls" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 items-center">
-            <select id="exercise-select" class="col-span-1 md:col-span-1 border-gray-300 rounded-lg p-3 text-lg focus:ring-2 focus:ring-blue-500 w-full disabled:bg-gray-200">
-                <option value="" disabled selected>1. Select an exercise</option>
+        <div id="controls" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 items-center">
+            <select id="exercise-select" class="md:col-span-1 border-gray-300 rounded-lg p-3 text-lg focus:ring-2 focus:ring-blue-500 w-full disabled:bg-gray-200">
+                <option value="" disabled selected>1. Select exercise</option>
             </select>
             <button id="start-button" onclick="startExercise()" 
                     class="bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2">
@@ -46,15 +46,22 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path d="M10 10l4 4m0-4l-4 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" /></svg>
                 Stop
             </button>
+            <label for="show-landmarks-toggle" class="flex items-center justify-center cursor-pointer">
+                <!-- Changed text to be more accurate -->
+                <span class="mr-3 text-lg font-medium text-gray-700">Show Joints</span>
+                <div class="relative">
+                    <input type="checkbox" id="show-landmarks-toggle" class="sr-only" checked>
+                    <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                    <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                </div>
+            </label>
         </div>
         
         <!-- Video and Stats -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="relative lg:col-span-2 bg-black rounded-lg overflow-hidden">
                 <div class="aspect-w-4 aspect-h-3">
-                    <!-- The video element shows the clean, real-time webcam feed -->
                     <video id="video-feed" class="w-full h-full" playsinline autoplay muted></video>
-                    <!-- The canvas is positioned directly on top for drawing overlays -->
                     <canvas id="overlay-canvas" class="absolute top-0 left-0 w-full h-full"></canvas>
                 </div>
                 <div id="feedback" class="feedback-animate absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 text-white text-lg font-semibold py-2 px-4 rounded-md text-center">
@@ -77,6 +84,16 @@
         </div>
     </div>
 
+    <style>
+        input:checked ~ .dot {
+            transform: translateX(100%);
+            background-color: #48bb78;
+        }
+        input:checked ~ .block {
+            background-color: #a0aec0;
+        }
+    </style>
+
     <script>
         let ws = null;
         let stream = null;
@@ -85,43 +102,40 @@
         let canvasCtx = null;
         let isStreaming = false;
         let lastFeedback = '';
+        let showLandmarks = true;
 
         // --- Drawing Helper Functions ---
-        const POSE_CONNECTIONS = [[11, 12], [11, 23], [12, 24], [23, 24], [23, 25], [24, 26], [25, 27], [26, 28], [27, 29], [28, 30], [29, 31], [30, 32]];
-        
+        const KEY_BODY_LANDMARK_INDICES = Array.from({length: 22}, (_, i) => i + 11);
+
         function drawLandmarks(landmarks) {
             if (!canvasCtx || !canvasEl) return;
             canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-            if (!landmarks || landmarks.length === 0) return;
 
-            // Draw connections
-            canvasCtx.lineWidth = 5;
-            canvasCtx.strokeStyle = 'rgba(40, 220, 40, 0.8)';
-            POSE_CONNECTIONS.forEach(pair => {
-                if (landmarks[pair[0]] && landmarks[pair[1]]) {
-                    const p1 = landmarks[pair[0]];
-                    const p2 = landmarks[pair[1]];
-                    if (p1.visibility > 0.5 && p2.visibility > 0.5) {
-                        canvasCtx.beginPath();
-                        canvasCtx.moveTo(p1.x * canvasEl.width, p1.y * canvasEl.height);
-                        canvasCtx.lineTo(p2.x * canvasEl.width, p2.y * canvasEl.height);
-                        canvasCtx.stroke();
-                    }
-                }
+            if (!showLandmarks || !landmarks || landmarks.length === 0) {
+                return;
+            }
+            
+            const landmarkMap = {};
+            landmarks.forEach((lm, idx) => {
+                const originalIndex = KEY_BODY_LANDMARK_INDICES[idx];
+                landmarkMap[originalIndex] = lm;
             });
 
-            // Draw landmarks
-            canvasCtx.fillStyle = 'rgba(220, 40, 40, 0.9)';
-            landmarks.forEach(lm => {
+            // *** MODIFICATION: The entire "Draw connections" block has been removed. ***
+
+            // Draw landmarks (dots)
+            canvasCtx.fillStyle = 'rgba(255, 87, 34, 0.9)'; // A nice bright orange color
+            Object.values(landmarkMap).forEach(lm => {
                 if (lm && lm.visibility > 0.5) {
                     canvasCtx.beginPath();
-                    canvasCtx.arc(lm.x * canvasEl.width, lm.y * canvasEl.height, 6, 0, 2 * Math.PI);
+                    // Increased dot size slightly for better visibility
+                    canvasCtx.arc(lm.x * canvasEl.width, lm.y * canvasEl.height, 7, 0, 2 * Math.PI);
                     canvasCtx.fill();
                 }
             });
         }
 
-        // --- UI Helper Functions ---
+        // --- UI Helper Functions (Unchanged) ---
         function updateFeedback(message) {
             if (message === lastFeedback) return;
             lastFeedback = message;
@@ -134,7 +148,7 @@
         function updateStatus(message) { document.getElementById('status-text').textContent = message; }
         function updateReps(current, total) { document.getElementById('rep-count').textContent = `${current} / ${total || 3}`; }
 
-        // --- Core Application Logic ---
+        // --- Core Application Logic (Unchanged) ---
         async function loadExercises() {
             try {
                 const response = await fetch('/exercises-api');
@@ -197,7 +211,6 @@
             };
 
             ws.onmessage = (event) => {
-                // The client now ONLY receives JSON data, no more blobs.
                 try {
                     const data = JSON.parse(event.data);
                     if (data.error) {
@@ -244,7 +257,6 @@
         function sendFrames() {
             if (!isStreaming || !videoEl || videoEl.paused || videoEl.ended) return;
             
-            // Draw video to a temporary canvas to get a blob for sending
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = videoEl.videoWidth;
             tempCanvas.height = videoEl.videoHeight;
@@ -254,8 +266,7 @@
                 if (blob && ws?.readyState === WebSocket.OPEN) {
                     ws.send(blob);
                 }
-                // Schedule the next frame to be sent
-                if(isStreaming) setTimeout(sendFrames, 1000 / 15); // ~15 FPS
+                if(isStreaming) setTimeout(sendFrames, 1000 / 15);
             }, 'image/jpeg', 0.8);
         }
         
@@ -289,8 +300,16 @@
         }
         
         window.onload = () => {
-          loadExercises();
-          resetInterface();
+            loadExercises();
+            resetInterface();
+            const landmarkToggle = document.getElementById('show-landmarks-toggle');
+            landmarkToggle.addEventListener('change', (event) => {
+                showLandmarks = event.target.checked;
+                if (!showLandmarks && !isStreaming) {
+                    canvasCtx?.clearRect(0, 0, canvasEl.width, canvasEl.height);
+                }
+            });
+            showLandmarks = landmarkToggle.checked;
         };
     </script>
 </body>

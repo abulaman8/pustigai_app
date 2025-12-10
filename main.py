@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 
 from sql_app import crud, models, schemas
 from sql_app.database import SessionLocal, engine
+from src.obfuscated.processor import cleanup_session
 
 # === MODIFIED DATA IMPORT START ===
 from src.obfuscated.exercise_data_part1 import exercises_db_part1
@@ -215,6 +216,7 @@ async def stream_video(websocket: WebSocket):
         print(f"WebSocket error: {e}, traceback: {traceback.format_exc()}")
     finally:
         print("Cleaning up WebSocket")
+        cleanup_session(session_data)
         if processing_task and not processing_task.done():
             processing_task.cancel()
         db.close()
